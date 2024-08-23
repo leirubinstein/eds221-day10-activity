@@ -1,0 +1,106 @@
+---
+title: "Long-term ice cover duration"
+author: "Leilanie Rubinstein"
+execute:
+  warning: false
+format: html
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(tidyverse)
+library(here)
+library(janitor)
+library(ggbeeswarm)
+library(ggExtra)
+```
+
+```{r}
+ice_duration_data <- read_csv(here::here("data", "ntl33_v7.csv"), na = c("-999", ""))
+
+meteorlogical_data <- read_csv(here::here("data", "ntl20_v13.csv"))
+```
+
+```{r}
+iceplot <- ggplot(data = ice_duration_data, aes(x = lakeid, y = ice_duration)) +
+  geom_boxplot(na.rm = TRUE) +
+  labs(x = "Lake ID",
+       y = "Ice Duration",
+       title = "North Temperate Lakes Ice Duration") +
+  theme_light()
+iceplot
+```
+
+```{r}
+ice_duration_summary_mean <- ice_duration_data %>%
+  dplyr::group_by(year4) %>%
+  dplyr::summarise(mean_duration = mean(ice_duration))
+```
+
+```{r}
+iceplot_summary <- ggplot(data = ice_duration_summary_mean, 
+                          aes(x = year4, y = mean_duration)) +
+  geom_point() +
+  labs(x = "Year (1851 - 2019)",
+       y = "Mean Ice Duration",
+       title = "Mean Ice Duration (1851-2019)")
+iceplot_summary
+
+```
+
+##### There appears to be a downward trend in mean ice duration
+
+```{r}
+mean_winter_temp_summary <- meteorlogical_data %>%
+  dplyr::mutate(sampledates_clean = lubridate::ymd(sampledate)) %>%
+  dplyr::mutate(month = lubridate::month(sampledates_clean)) %>%
+  dplyr::filter(month %in% c(12, 1, 2)) %>%
+  dplyr::group_by(year4) %>%
+  dplyr::summarise(mean_air_temp = mean(avg_air_temp_adjusted, na.rm = TRUE))
+```
+
+```{r}
+mean_winter_temps_plot <- ggplot(data = mean_winter_temp_summary, aes(x = year4, y = mean_air_temp)) + 
+  geom_line() + 
+  labs(x = "\nYear (1869 - 2023)",
+       y = "Mean Winter Temperature (ºC)",
+       title = "Mean Winter Temperatures for the Madison Lake Area")
+
+mean_winter_temps_plot
+```
+
+# There appears to be an upwards trend in mean temperature
+
+```{r}
+winter_temp_ice_duration <- full_join(ice_duration_summary_mean, mean_winter_temp_summary, by = "year4")
+
+temp_and_ice_plot <- ggplot(data = winter_temp_ice_duration, 
+                            aes(x = mean_air_temp,
+                                y = mean_duration)) + 
+  geom_line()
+  
+temp_and_ice_plot
+```
+
+# there appears to be a slight correlation between decreased duration of ice cover and incresed air temperature
+
+```{r}
+subset_ice_duration <- ice_duration_data %>%
+  dplyr::filter(year4 >= 1970) %>%
+  dplyr::mutate(ice_off = lubridate::ymd(ice_off)) %>%
+  dplyr::mutate(day_of_year = lubridate::yday(ice_off))
+
+ice_off_date_plot <- ggplot(data = subset_ice_duration, 
+                            aes(x = year4,
+                                y = day_of_year)) +
+  geom_point() +
+  labs(x = "Year (since 1970)",
+       y = "Thaw Day",
+       title = "Thaw Dates since 1970")
+  
+ice_off_date_plot
+```
+
+# it appears as though the thaw date is getting earlier
+
